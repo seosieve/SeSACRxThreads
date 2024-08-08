@@ -13,7 +13,6 @@ class BoxOfficeViewModel {
     
     let disposeBag = DisposeBag()
     
-    let movieList = Observable.just(["daw", "daw", "aaa"])
     var recentList = ["aaa"]
     
     ///Input Observable
@@ -26,15 +25,29 @@ class BoxOfficeViewModel {
     
     ///Output Observable
     struct Output {
-        let movieList: Observable<[String]>
+        let movieList: Observable<[DailyBoxOfficeList]>
         let recentList: BehaviorSubject<[String]>
     }
     
     func transform(input: Input) -> Output {
         
+        let boxOfficeList = PublishSubject<[DailyBoxOfficeList]>()
+        let recentList = BehaviorSubject<[String]>(value: recentList)
+        
         input.searchButtonTap
-            .subscribe(with: self) { owner, _ in
-                print("Tap")
+            .throttle(.seconds(1), scheduler: MainScheduler.instance)
+            .withLatestFrom(input.searchText)
+            .distinctUntilChanged()
+            .map { Int($0) ?? 20231010 }
+            .flatMap { NetworkManager.shared.callBoxOffice($0) }
+            .subscribe { movie in
+                boxOfficeList.onNext(movie.boxOfficeResult.dailyBoxOfficeList)
+            } onError: { error in
+                print(error)
+            } onCompleted: {
+                print("Completed")
+            } onDisposed: {
+                print("Disposed")
             }
             .disposed(by: disposeBag)
         
@@ -44,10 +57,6 @@ class BoxOfficeViewModel {
             }
             .disposed(by: disposeBag)
         
-        
-        
-        let recentList = BehaviorSubject<[String]>(value: recentList)
-        
         input.recentText
             .bind(with: self) { owner, value in
                 owner.recentList.append(value)
@@ -55,6 +64,6 @@ class BoxOfficeViewModel {
             }
             .disposed(by: disposeBag)
         
-        return Output(movieList: movieList, recentList: recentList)
+        return Output(movieList: boxOfficeList, recentList: recentList)
     }
 }

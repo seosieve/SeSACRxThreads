@@ -85,7 +85,8 @@ class BoxOfficeViewController: UIViewController {
         
         output.movieList
             .bind(to: tableView.rx.items(cellIdentifier: identifier.1, cellType: MovieTableViewCell.self)) { row, element, cell in
-                cell.appNameLabel.text = element
+                cell.appNameLabel.text = element.movieNm
+                cell.downloadButton.setTitle(element.openDt, for: .normal)
             }
             .disposed(by: disposeBag)
         
@@ -93,6 +94,29 @@ class BoxOfficeViewController: UIViewController {
             .map { "검색어는 \($0)" }
             .subscribe(with: self, onNext: { owner, value in
                 recentText.onNext(value)
+            })
+            .disposed(by: disposeBag)
+    }
+    
+    func createObservable() {
+        let random = Observable<Int>.create { value in
+            
+            let result = Int.random(in: 1...100)
+            
+            if result >= 1 && result <= 3 {
+                value.onNext(result)
+            } else {
+                value.onCompleted()
+            }
+            
+            return Disposables.create()
+        }
+        
+        random
+            .subscribe(onNext: { value in
+                print(value)
+            }, onCompleted: {
+                print("completed")
             })
             .disposed(by: disposeBag)
     }
